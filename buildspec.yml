@@ -3,10 +3,12 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      golang: 1.16
+      golang: 1.15
   build:
     commands:
       - cd $CODEBUILD_SRC_DIR
+      - echo Downloading Go packages...
+      - go get -u ./...
       - echo Testing Go code...
       - go test
       - echo Building the Go code...
