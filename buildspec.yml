@@ -14,7 +14,7 @@ phases:
       - echo Building the Go code...
       - GOOS=linux GOARCH=amd64 go build -o application application.go
       - zip application.zip application
-      - aws lambda update-function-code --function-name sign-up --zip-file application.zip
+      - aws lambda update-function-code --function-name sign-up --zip-file fileb://$CODEBUILD_SRC_DIR/application.zip
 artifacts:
   files:
     - application
