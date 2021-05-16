@@ -13,9 +13,6 @@ phases:
       - go test
       - echo Building the Go code...
       - GOOS=linux GOARCH=amd64 go build -o application application.go
-      - zip application.zip application
 artifacts:
-  secondary-artifacts:
-    golang_artifacts:
-      files:
-        - application
+  files:
+    - application
