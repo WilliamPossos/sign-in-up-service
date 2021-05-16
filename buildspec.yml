@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      golang: 1.16
+  build:
+    commands:
+      - cd $CODEBUILD_SRC_DIR
+      - echo Testing Go code...
+      - go test
+      - echo Building the Go code...
+      - GOOS=linux GOARCH=amd64 go build -o application application.go
+      - zip application.zip application
+artifacts:
+  secondary-artifacts:
+    golang_artifacts:
+      files:
+        - application
