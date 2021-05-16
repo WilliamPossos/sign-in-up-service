@@ -9,3 +9,4 @@ Resources:
         Alias: "sign-up" # Specify the alias for your Lambda function
         CurrentVersion: "1" # Specify the current version of your Lambda function
         TargetVersion: "1"
+        CodeUri: "s3://joiners-challenge/application"
