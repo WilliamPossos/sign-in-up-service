@@ -5,10 +5,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"os"
 	"sign-in-up-service/model"
 )
 
-var QueueUrl = "QueueURL"
+var QueueUrl = os.Getenv("QUEUE_URL")
 
 type ISqsEmailService interface {
 	Send(verification model.EmailVerification) error
