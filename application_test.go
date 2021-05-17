@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events/test"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/stretchr/testify/mock"
@@ -50,6 +51,17 @@ func (m *MockDynamoDBClient) PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemO
 	return nil, nil
 }
 
+func (m *MockDynamoDBClient) GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+	itemOutput := dynamodb.GetItemOutput{Item: map[string]*dynamodb.AttributeValue{
+		"email": {
+			S: aws.String("email"),
+		},
+		"password": {
+			S: aws.String("password"),
+		}}}
+	return &itemOutput, nil
+}
+
 func TestSignUp(t *testing.T) {
 	ts := httptest.NewServer(setupGin())
 	defer ts.Close()
@@ -80,14 +92,32 @@ func TestSaveUser(t *testing.T) {
 
 	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
 	var user = model.User{
-		Username: "1",
-		Email:    "2",
-		Password: "3",
+		Username: "a",
+		Email:    "b",
+		Password: "c",
 	}
 	err := repository.Create(user)
 
 	if err != nil {
 		t.Fatalf("Expected no error got %s", err)
 	}
+}
 
+func TestSearchUser(t *testing.T) {
+
+	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
+	var user = model.User{
+		Username: "a",
+		Email:    "b",
+		Password: "c",
+	}
+	found, err := repository.Search(user.Email, user.Password)
+
+	if err != nil {
+		t.Fatalf("Expected no error got %s", err)
+	}
+
+	if found != true {
+		t.Fatalf("Expected user found")
+	}
 }
