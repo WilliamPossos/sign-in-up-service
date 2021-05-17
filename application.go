@@ -2,23 +2,30 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/aws-lambda-go-api-proxy/gin"
 	"github.com/gin-gonic/gin"
+	"math/rand"
 	"net/http"
 	"sign-in-up-service/model"
 	"sign-in-up-service/repository"
+	"time"
 )
 
 var ginLambda *ginadapter.GinLambda
 
 var sess *session.Session
 var dynamoClient dynamodbiface.DynamoDBAPI
+var sqsClient sqsiface.SQSAPI
 var userRepository repository.IUserRepository
+var sqsRepository repository.SqsEmailService
 
 func init() {
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
@@ -26,6 +33,8 @@ func init() {
 	}))
 
 	dynamoClient = dynamodb.New(sess)
+	sqsClient = sqs.New(sess)
+	sqsRepository = repository.SqsEmailService{SqsClient: sqsClient}
 	userRepository = repository.UserRepository{DbClient: dynamoClient}
 	ginLambda = ginadapter.New(setupGin())
 }
@@ -64,7 +73,26 @@ func signUpHandler(c *gin.Context) {
 		return
 	}
 
+	code := GetRandomCode()
+	verification := model.EmailVerification{
+		Email: user.Email,
+		Code:  code,
+	}
+	err = sqsRepository.Send(verification)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, user)
+}
+
+func GetRandomCode() string {
+	rand.Seed(time.Now().UnixNano())
+	min := 1001
+	max := 9998
+	code := fmt.Sprintf("%d", rand.Intn(max-min+1)+min)
+	return code
 }
 
 func signInHandler(c *gin.Context) {
