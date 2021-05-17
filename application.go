@@ -25,7 +25,7 @@ var sess *session.Session
 var dynamoClient dynamodbiface.DynamoDBAPI
 var sqsClient sqsiface.SQSAPI
 var userRepository repository.IUserRepository
-var sqsRepository repository.SqsEmailService
+var sqsRepository repository.ISqsEmailService
 
 func init() {
 	sess = session.Must(session.NewSessionWithOptions(session.Options{

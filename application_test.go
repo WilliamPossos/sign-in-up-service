@@ -22,6 +22,15 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
+type MockSqsRepository struct {
+	mock.Mock
+}
+
+func (m MockSqsRepository) Send(verification model.EmailVerification) error {
+	args := m.Called(verification)
+	return args.Error(0)
+}
+
 func (m MockUserRepository) Exist(email string) (bool, error) {
 	args := m.Called(email)
 	return args.Bool(0), args.Error(1)
@@ -46,10 +55,14 @@ func TestSignUp(t *testing.T) {
 	defer ts.Close()
 
 	userRepositoryMock := new(MockUserRepository)
+	sqsRepositoryMock := new(MockSqsRepository)
+	sqsRepositoryMock.On("Send", mock.Anything).Return(nil)
 	userRepositoryMock.On("Create", mock.MatchedBy(func(user model.User) bool {
 		return user.Email == "test@test.com" && user.Username == "test" && user.Password == "pass"
 	})).Return(nil)
+
 	userRepository = userRepositoryMock
+	sqsRepository = sqsRepositoryMock
 
 	inputJson := test.ReadJSONFromFile(t, "sign-up.json")
 	resp, err := http.Post(fmt.Sprintf("%s/sign-up", ts.URL), "application/json", strings.NewReader(string(inputJson)))
