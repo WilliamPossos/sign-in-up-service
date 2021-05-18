@@ -74,7 +74,11 @@ func verifyHandler(c *gin.Context) {
 	}
 
 	isSuccessVerified, err := userRepository.Verify(user.Email, user.VerificationCode)
-	if err != nil || isSuccessVerified != true {
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if isSuccessVerified != true {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "error validating code"})
 		return
 	}
