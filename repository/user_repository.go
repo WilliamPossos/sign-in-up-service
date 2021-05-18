@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"golang.org/x/crypto/bcrypt"
 	"sign-in-up-service/model"
 	"sign-in-up-service/util"
 )
@@ -40,7 +41,7 @@ func (ur UserRepository) Verify(email string, code string) (bool, error) {
 		return false, err
 	}
 
-	return user != nil, nil
+	return user != nil && user.VerificationCode == code, nil
 }
 
 func (ur UserRepository) Search(email string, password string) (bool, error) {
@@ -49,13 +50,13 @@ func (ur UserRepository) Search(email string, password string) (bool, error) {
 		return false, err
 	}
 
-	input := getSignInItemInput(email, hashedPassword)
+	input := getEmailItemInput(email)
 	user, err := util.GetItem(ur.DbClient, input)
 	if err != nil {
 		return false, err
 	}
 
-	return user != nil, nil
+	return user != nil && user.Password == hashedPassword, nil
 }
 
 func (ur UserRepository) Create(user model.UserDynamoDb) error {
@@ -83,23 +84,6 @@ func getEmailItemInput(email string) *dynamodb.GetItemInput {
 			"email": {
 				S: aws.String(email),
 			},
-			"username": {
-				S: aws.String("stibent"),
-			},
-		},
-	}
-}
-
-func getSignInItemInput(email string, password string) *dynamodb.GetItemInput {
-	return &dynamodb.GetItemInput{
-		TableName: aws.String(tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"email": {
-				S: aws.String(email),
-			},
-			"password": {
-				S: aws.String(password),
-			},
 		},
 	}
 }
@@ -118,9 +102,8 @@ func getUserWithHashPassword(user model.UserDynamoDb) (*model.UserDynamoDb, erro
 }
 
 func getHashPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
+	hash := sha256.New()
+	hash.Write([]byte(password))
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+
 }

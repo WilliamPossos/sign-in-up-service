@@ -73,10 +73,13 @@ func (m *MockDynamoDBClient) PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemO
 func (m *MockDynamoDBClient) GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
 	itemOutput := dynamodb.GetItemOutput{Item: map[string]*dynamodb.AttributeValue{
 		"email": {
-			S: aws.String("email"),
+			S: aws.String("possos@unicauca.edu.co"),
 		},
 		"password": {
-			S: aws.String("password"),
+			S: aws.String("9df0890d7e64d6cd56eb09086bc054dd718c9ecc608e27a03524a677b064982d"),
+		},
+		"code": {
+			S: aws.String("1010"),
 		}}}
 	return &itemOutput, nil
 }
@@ -165,9 +168,9 @@ func TestSearchUser(t *testing.T) {
 
 	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
 	var user = model.SignUpDto{
-		Username: "a",
-		Email:    "b",
-		Password: "c",
+		Username: "stibent",
+		Email:    "possos@unicauca.edu.co",
+		Password: "possos",
 	}
 	found, err := repository.Search(user.Email, user.Password)
 
