@@ -83,6 +83,9 @@ func getEmailItemInput(email string) *dynamodb.GetItemInput {
 			"email": {
 				S: aws.String(email),
 			},
+			"username": {
+				S: aws.String("stibent"),
+			},
 		},
 	}
 }
