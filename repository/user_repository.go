@@ -1,21 +1,22 @@
 package repository
 
 import (
-	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"golang.org/x/crypto/bcrypt"
 	"sign-in-up-service/model"
+	"sign-in-up-service/util"
 )
 
-var tableName = "User"
+const tableName = "User"
 
 type IUserRepository interface {
 	Exist(email string) (bool, error)
 	Search(email string, password string) (bool, error)
-	Create(user model.User) error
+	Verify(email string, code string) (bool, error)
+	Create(user model.UserDynamoDb) error
 }
 
 type UserRepository struct {
@@ -24,7 +25,22 @@ type UserRepository struct {
 
 func (ur UserRepository) Exist(email string) (bool, error) {
 	input := getEmailItemInput(email)
-	return GetItem(ur, input)
+	user, err := util.GetItem(ur.DbClient, input)
+	if err != nil {
+		return false, err
+	}
+	return user != nil, nil
+}
+
+func (ur UserRepository) Verify(email string, code string) (bool, error) {
+
+	input := getVerifyItemInput(email, code)
+	user, err := util.GetItem(ur.DbClient, input)
+	if err != nil {
+		return false, err
+	}
+
+	return user != nil, nil
 }
 
 func (ur UserRepository) Search(email string, password string) (bool, error) {
@@ -32,11 +48,17 @@ func (ur UserRepository) Search(email string, password string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	input := getSignInItemInput(email, hashedPassword)
-	return GetItem(ur, input)
+	user, err := util.GetItem(ur.DbClient, input)
+	if err != nil {
+		return false, err
+	}
+
+	return user != nil, nil
 }
 
-func (ur UserRepository) Create(user model.User) error {
+func (ur UserRepository) Create(user model.UserDynamoDb) error {
 	userToPut, err := getUserWithHashPassword(user)
 	av, err := dynamodbattribute.MarshalMap(userToPut)
 	if err != nil {
@@ -44,32 +66,14 @@ func (ur UserRepository) Create(user model.User) error {
 	}
 
 	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(tableName),
+		Item:                av,
+		TableName:           aws.String(tableName),
+		ConditionExpression: aws.String("attribute_not_exists (email)"),
 	}
 
 	_, err = ur.DbClient.PutItem(input)
 
 	return err
-}
-
-func GetItem(ur UserRepository, input *dynamodb.GetItemInput) (bool, error) {
-	result, err := ur.DbClient.GetItem(input)
-	if err != nil {
-		return false, err
-	}
-
-	if result.Item == nil {
-		return false, errors.New("could not find the item")
-	}
-
-	item := model.User{}
-	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
 }
 
 func getEmailItemInput(email string) *dynamodb.GetItemInput {
@@ -97,15 +101,30 @@ func getSignInItemInput(email string, password string) *dynamodb.GetItemInput {
 	}
 }
 
-func getUserWithHashPassword(user model.User) (*model.User, error) {
+func getVerifyItemInput(email string, code string) *dynamodb.GetItemInput {
+	return &dynamodb.GetItemInput{
+		TableName: aws.String(tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"email": {
+				S: aws.String(email),
+			},
+			"code": {
+				S: aws.String(code),
+			},
+		},
+	}
+}
+
+func getUserWithHashPassword(user model.UserDynamoDb) (*model.UserDynamoDb, error) {
 	hashedPassword, err := getHashPassword(user.Password)
 	if err != nil {
 		return nil, err
 	}
-	return &model.User{
-		Username: user.Username,
-		Email:    user.Email,
-		Password: hashedPassword,
+	return &model.UserDynamoDb{
+		Username:         user.Username,
+		Email:            user.Email,
+		Password:         hashedPassword,
+		VerificationCode: user.VerificationCode,
 	}, nil
 }
 

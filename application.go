@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/aws-lambda-go-api-proxy/gin"
 	"github.com/gin-gonic/gin"
+	"log"
 	"math/rand"
 	"net/http"
 	"sign-in-up-service/model"
@@ -25,7 +26,14 @@ var sess *session.Session
 var dynamoClient dynamodbiface.DynamoDBAPI
 var sqsClient sqsiface.SQSAPI
 var userRepository repository.IUserRepository
+var attemptRepository repository.ILoginAttemptRepository
 var sqsRepository repository.ISqsEmailService
+
+const (
+	MaxAttempts = 3
+	AuthSuccess = "AuthSuccess"
+	AuthError   = "AuthError"
+)
 
 func init() {
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
@@ -36,17 +44,12 @@ func init() {
 	sqsClient = sqs.New(sess)
 	sqsRepository = repository.SqsEmailService{SqsClient: sqsClient}
 	userRepository = repository.UserRepository{DbClient: dynamoClient}
+	attemptRepository = repository.LoginAttemptRepository{DbClient: dynamoClient}
 	ginLambda = ginadapter.New(setupGin())
 }
 
 func setupGin() *gin.Engine {
 	router := gin.Default()
-
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
 
 	router.POST("/sign-up", func(c *gin.Context) {
 		signUpHandler(c)
@@ -56,29 +59,59 @@ func setupGin() *gin.Engine {
 		signInHandler(c)
 	})
 
+	router.POST("/verify", func(c *gin.Context) {
+		verifyHandler(c)
+	})
+
 	return router
 }
 
-func signUpHandler(c *gin.Context) {
-	var user model.User
+func verifyHandler(c *gin.Context) {
+	var user model.SignInDto
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := userRepository.Create(user)
+	isSuccessVerified, err := userRepository.Verify(user.Email, user.VerificationCode)
+	if err != nil || isSuccessVerified != true {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "error validating code"})
+		return
+	}
+
+	saveAttemptRecord(user, true)
+	c.JSON(http.StatusOK, model.OperationResult{
+		Message: AuthSuccess,
+	})
+}
+
+func signUpHandler(c *gin.Context) {
+	var user model.SignUpDto
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	code := GetRandomCode()
+
+	err := userRepository.Create(model.UserDynamoDb{
+		Username:         user.Username,
+		Email:            user.Email,
+		Password:         user.Password,
+		VerificationCode: code,
+	})
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	code := GetRandomCode()
 	verification := model.EmailVerification{
 		Email: user.Email,
 		Code:  code,
 	}
 	err = sqsRepository.Send(verification)
+
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -96,20 +129,56 @@ func GetRandomCode() string {
 }
 
 func signInHandler(c *gin.Context) {
-	var user model.User
+	var user model.SignInDto
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	res, err := userRepository.Search(user.Email, user.Password)
+	signInValidation, err := userSingIn(model.SignInDto{
+		Email:            user.Email,
+		Password:         user.Password,
+		VerificationCode: user.VerificationCode,
+	})
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	c.JSON(http.StatusOK, model.OperationResult{Message: signInValidation})
+}
+
+func userSingIn(user model.SignInDto) (string, error) {
+	validation, err := attemptRepository.GetAttemptsValidation(user.Email, MaxAttempts)
+	if err != nil {
+		return AuthError, err
+	}
+
+	if validation == repository.AllowedFailedAttempts {
+		isLoginSuccess, err := userRepository.Search(user.Email, user.Password)
+		saveAttemptRecord(user, isLoginSuccess)
+
+		if err != nil {
+			return AuthError, err
+		}
+
+		return AuthSuccess, nil
+	}
+
+	return validation, nil
+}
+
+func saveAttemptRecord(user model.SignInDto, isLoginSuccess bool) {
+	errAttempt := attemptRepository.Create(model.LoginAttempt{
+		Email:  user.Email,
+		Time:   fmt.Sprint(time.Now().Unix()),
+		Status: isLoginSuccess,
+	})
+
+	if errAttempt != nil {
+		log.Print("Error saving attempt")
+	}
 }
 
 func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {

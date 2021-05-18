@@ -37,12 +37,17 @@ func (m MockUserRepository) Exist(email string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
+func (m MockUserRepository) Verify(email string, code string) (bool, error) {
+	args := m.Called(email)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m MockUserRepository) Search(email string, password string) (bool, error) {
 	args := m.Called(email, password)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m MockUserRepository) Create(user model.User) error {
+func (m MockUserRepository) Create(user model.UserDynamoDb) error {
 	args := m.Called(user)
 	return args.Error(0)
 }
@@ -69,7 +74,7 @@ func TestSignUp(t *testing.T) {
 	userRepositoryMock := new(MockUserRepository)
 	sqsRepositoryMock := new(MockSqsRepository)
 	sqsRepositoryMock.On("Send", mock.Anything).Return(nil)
-	userRepositoryMock.On("Create", mock.MatchedBy(func(user model.User) bool {
+	userRepositoryMock.On("Create", mock.MatchedBy(func(user model.UserDynamoDb) bool {
 		return user.Email == "test@test.com" && user.Username == "test" && user.Password == "pass"
 	})).Return(nil)
 
@@ -91,10 +96,11 @@ func TestSignUp(t *testing.T) {
 func TestSaveUser(t *testing.T) {
 
 	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
-	var user = model.User{
-		Username: "a",
-		Email:    "b",
-		Password: "c",
+	var user = model.UserDynamoDb{
+		Username:         "a",
+		Email:            "b",
+		Password:         "c",
+		VerificationCode: "d",
 	}
 	err := repository.Create(user)
 
@@ -106,7 +112,7 @@ func TestSaveUser(t *testing.T) {
 func TestSearchUser(t *testing.T) {
 
 	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
-	var user = model.User{
+	var user = model.SignUpDto{
 		Username: "a",
 		Email:    "b",
 		Password: "c",
