@@ -52,6 +52,20 @@ func (m MockUserRepository) Create(user model.UserDynamoDb) error {
 	return args.Error(0)
 }
 
+func (m *MockDynamoDBClient) Scan(*dynamodb.ScanInput) (*dynamodb.ScanOutput, error) {
+	return &dynamodb.ScanOutput{
+		Items: []map[string]*dynamodb.AttributeValue{
+			{
+				"email": {
+					S: aws.String("email"),
+				},
+				"code": {
+					S: aws.String("1010"),
+				}},
+		},
+	}, nil
+}
+
 func (m *MockDynamoDBClient) PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
 	return nil, nil
 }
@@ -83,6 +97,25 @@ func TestSignUp(t *testing.T) {
 
 	inputJson := test.ReadJSONFromFile(t, "sign-up.json")
 	resp, err := http.Post(fmt.Sprintf("%s/sign-up", ts.URL), "application/json", strings.NewReader(string(inputJson)))
+
+	if err != nil {
+		t.Fatalf("Expected no error got %s", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestSignIn(t *testing.T) {
+	ts := httptest.NewServer(setupGin())
+	defer ts.Close()
+
+	userRepository = repository.UserRepository{DbClient: &MockDynamoDBClient{}}
+	attemptRepository = repository.LoginAttemptRepository{DbClient: &MockDynamoDBClient{}}
+
+	inputJson := test.ReadJSONFromFile(t, "sign-in.json")
+	resp, err := http.Post(fmt.Sprintf("%s/sign-in", ts.URL), "application/json", strings.NewReader(string(inputJson)))
 
 	if err != nil {
 		t.Fatalf("Expected no error got %s", err)
