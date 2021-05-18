@@ -34,7 +34,7 @@ func (ur UserRepository) Exist(email string) (bool, error) {
 
 func (ur UserRepository) Verify(email string, code string) (bool, error) {
 
-	input := getVerifyItemInput(email, code)
+	input := getEmailItemInput(email)
 	user, err := util.GetItem(ur.DbClient, input)
 	if err != nil {
 		return false, err
@@ -96,20 +96,6 @@ func getSignInItemInput(email string, password string) *dynamodb.GetItemInput {
 			},
 			"password": {
 				S: aws.String(password),
-			},
-		},
-	}
-}
-
-func getVerifyItemInput(email string, code string) *dynamodb.GetItemInput {
-	return &dynamodb.GetItemInput{
-		TableName: aws.String(tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"email": {
-				S: aws.String(email),
-			},
-			"code": {
-				S: aws.String(code),
 			},
 		},
 	}

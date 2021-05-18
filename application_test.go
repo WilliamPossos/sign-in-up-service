@@ -126,6 +126,25 @@ func TestSignIn(t *testing.T) {
 	}
 }
 
+func TestVerify(t *testing.T) {
+	ts := httptest.NewServer(setupGin())
+	defer ts.Close()
+
+	userRepository = repository.UserRepository{DbClient: &MockDynamoDBClient{}}
+	attemptRepository = repository.LoginAttemptRepository{DbClient: &MockDynamoDBClient{}}
+
+	inputJson := test.ReadJSONFromFile(t, "verify.json")
+	resp, err := http.Post(fmt.Sprintf("%s/verify", ts.URL), "application/json", strings.NewReader(string(inputJson)))
+
+	if err != nil {
+		t.Fatalf("Expected no error got %s", err)
+	}
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestSaveUser(t *testing.T) {
 
 	repository := repository.UserRepository{DbClient: &MockDynamoDBClient{}}
