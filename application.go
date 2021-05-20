@@ -51,10 +51,6 @@ func init() {
 
 func setupGin() *gin.Engine {
 	router := gin.Default()
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{}
-	router.Use(cors.New(config))
-
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"https://challenge-3.goodwilli.com", "http://localhost:4200"},
 		AllowMethods:     []string{"POST", "GET"},
