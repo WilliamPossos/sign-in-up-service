@@ -51,17 +51,9 @@ func init() {
 
 func setupGin() *gin.Engine {
 	router := gin.Default()
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:4200", "https://challenge-3.goodwilli.com"},
-		AllowMethods:     []string{"GET", "POST"},
-		AllowHeaders:     []string{"Origin", "content-type"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		AllowOriginFunc: func(origin string) bool {
-			return origin == "https://github.com"
-		},
-		MaxAge: 12 * time.Hour,
-	}))
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"https://challenge-3.goodwilli.com", "http://localhost:4200"}
+	router.Use(cors.New(config))
 
 	router.POST("/sign-up", func(c *gin.Context) {
 		signUpHandler(c)
