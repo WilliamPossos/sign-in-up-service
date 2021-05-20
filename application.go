@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/awslabs/aws-lambda-go-api-proxy/gin"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
 	"math/rand"
@@ -50,6 +51,17 @@ func init() {
 
 func setupGin() *gin.Engine {
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:4200", "https://challenge-3.goodwilli.com"},
+		AllowMethods:     []string{"GET", "POST"},
+		AllowHeaders:     []string{"Origin", "content-type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "https://github.com"
+		},
+		MaxAge: 12 * time.Hour,
+	}))
 
 	router.POST("/sign-up", func(c *gin.Context) {
 		signUpHandler(c)
@@ -146,7 +158,7 @@ func signInHandler(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
