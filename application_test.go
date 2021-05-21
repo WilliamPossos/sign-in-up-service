@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"sign-in-up-service/model"
 	"sign-in-up-service/repository"
+	"sign-in-up-service/util"
 	"strings"
 	"testing"
 )
@@ -32,19 +33,14 @@ func (m MockSqsRepository) Send(verification model.EmailVerification) error {
 	return args.Error(0)
 }
 
-func (m MockUserRepository) Exist(email string) (bool, error) {
-	args := m.Called(email)
-	return args.Bool(0), args.Error(1)
-}
-
 func (m MockUserRepository) Verify(email string, code string) (bool, error) {
 	args := m.Called(email)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m MockUserRepository) Search(email string, password string) (bool, error) {
-	args := m.Called(email, password)
-	return args.Bool(0), args.Error(1)
+func (m MockUserRepository) Search(email string) (*model.UserDynamoDb, error) {
+	args := m.Called(email)
+	return args.Get(0).(*model.UserDynamoDb), args.Error(1)
 }
 
 func (m MockUserRepository) Create(user model.UserDynamoDb) error {
@@ -172,13 +168,13 @@ func TestSearchUser(t *testing.T) {
 		Email:    "possos@unicauca.edu.co",
 		Password: "possos",
 	}
-	found, err := repository.Search(user.Email, user.Password)
+	found, err := repository.Search(user.Email)
 
 	if err != nil {
 		t.Fatalf("Expected no error got %s", err)
 	}
 
-	if found != true {
-		t.Fatalf("Expected user found")
+	if found.Password != util.GetHashPassword("possos") {
+		t.Fatalf("Expected password match")
 	}
 }
