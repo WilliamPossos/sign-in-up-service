@@ -25,5 +25,5 @@ type EmailVerification struct {
 }
 
 type OperationResult struct {
-	Message string `json:"message"`
+	OkMessage string `json:"okMessage"`
 }

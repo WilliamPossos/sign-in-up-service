@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -14,9 +12,8 @@ import (
 const tableName = "User"
 
 type IUserRepository interface {
-	Exist(email string) (bool, error)
-	Search(email string, password string) (bool, error)
 	Verify(email string, code string) (bool, error)
+	Search(email string) (*model.UserDynamoDb, error)
 	Create(user model.UserDynamoDb) error
 }
 
@@ -24,39 +21,25 @@ type UserRepository struct {
 	DbClient dynamodbiface.DynamoDBAPI
 }
 
-func (ur UserRepository) Exist(email string) (bool, error) {
-	input := getEmailItemInput(email)
-	user, err := util.GetItem(ur.DbClient, input)
-	if err != nil {
-		return false, err
-	}
-	return user != nil, nil
-}
-
 func (ur UserRepository) Verify(email string, code string) (bool, error) {
 
-	input := getEmailItemInput(email)
-	user, err := util.GetItem(ur.DbClient, input)
+	user, err := ur.Search(email)
 	if err != nil {
 		return false, err
 	}
 
-	return user != nil && user.VerificationCode == code, nil
+	isValidCode := user != nil && user.VerificationCode == code
+	return isValidCode, err
 }
 
-func (ur UserRepository) Search(email string, password string) (bool, error) {
-	hashedPassword, err := getHashPassword(password)
-	if err != nil {
-		return false, err
-	}
-
+func (ur UserRepository) Search(email string) (*model.UserDynamoDb, error) {
 	input := getEmailItemInput(email)
 	user, err := util.GetItem(ur.DbClient, input)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return user != nil && user.Password == hashedPassword, nil
+	return user, nil
 }
 
 func (ur UserRepository) Create(user model.UserDynamoDb) error {
@@ -89,21 +72,11 @@ func getEmailItemInput(email string) *dynamodb.GetItemInput {
 }
 
 func getUserWithHashPassword(user model.UserDynamoDb) (*model.UserDynamoDb, error) {
-	hashedPassword, err := getHashPassword(user.Password)
-	if err != nil {
-		return nil, err
-	}
+	hashedPassword := util.GetHashPassword(user.Password)
 	return &model.UserDynamoDb{
 		Username:         user.Username,
 		Email:            user.Email,
 		Password:         hashedPassword,
 		VerificationCode: user.VerificationCode,
 	}, nil
-}
-
-func getHashPassword(password string) (string, error) {
-	hash := sha256.New()
-	hash.Write([]byte(password))
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
-
 }

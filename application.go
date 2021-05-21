@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -18,6 +19,7 @@ import (
 	"net/http"
 	"sign-in-up-service/model"
 	"sign-in-up-service/repository"
+	"sign-in-up-service/util"
 	"time"
 )
 
@@ -31,9 +33,10 @@ var attemptRepository repository.ILoginAttemptRepository
 var sqsRepository repository.ISqsEmailService
 
 const (
-	MaxAttempts = 3
-	AuthSuccess = "AuthSuccess"
-	AuthError   = "AuthError"
+	MaxAttempts               = 3
+	SignInSuccess             = "SignInSuccess"
+	SignUpSuccess             = "SignUpSuccess"
+	InvalidUsernameOrPassword = "invalid username or password"
 )
 
 func init() {
@@ -96,8 +99,9 @@ func verifyHandler(c *gin.Context) {
 	}
 
 	saveAttemptRecord(user, true)
+
 	c.JSON(http.StatusOK, model.OperationResult{
-		Message: AuthSuccess,
+		OkMessage: SignInSuccess,
 	})
 }
 
@@ -108,7 +112,7 @@ func signUpHandler(c *gin.Context) {
 		return
 	}
 
-	code := GetRandomCode()
+	code := getRandomCode()
 
 	err := userRepository.Create(model.UserDynamoDb{
 		Username:         user.Username,
@@ -133,15 +137,7 @@ func signUpHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
-}
-
-func GetRandomCode() string {
-	rand.Seed(time.Now().UnixNano())
-	min := 1001
-	max := 9998
-	code := fmt.Sprintf("%d", rand.Intn(max-min+1)+min)
-	return code
+	c.JSON(http.StatusOK, model.OperationResult{OkMessage: SignUpSuccess})
 }
 
 func signInHandler(c *gin.Context) {
@@ -162,34 +158,54 @@ func signInHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, model.OperationResult{Message: signInValidation})
+	c.JSON(http.StatusOK, model.OperationResult{OkMessage: signInValidation})
 }
 
-func userSingIn(user model.SignInDto) (string, error) {
-	validation, err := attemptRepository.GetAttemptsValidation(user.Email, MaxAttempts)
+func userSingIn(signInDto model.SignInDto) (string, error) {
+	userFound, err := userRepository.Search(signInDto.Email)
 	if err != nil {
-		return AuthError, err
+		return "", err
 	}
 
+	if userFound == nil {
+		return "", errors.New(InvalidUsernameOrPassword)
+	}
+
+	validation, err := attemptRepository.GetAttemptsValidation(signInDto.Email, MaxAttempts)
 	if validation == repository.AllowedFailedAttempts {
-		isLoginSuccess, err := userRepository.Search(user.Email, user.Password)
-		saveAttemptRecord(user, isLoginSuccess)
-
-		if err != nil {
-			return AuthError, err
+		hashPassword := util.GetHashPassword(signInDto.Password)
+		if hashPassword == userFound.Password {
+			saveSuccessAttemptRecord(signInDto)
+			return SignInSuccess, nil
 		}
-
-		return AuthSuccess, nil
+		saveFailedAttemptRecord(signInDto)
+		return "", errors.New(InvalidUsernameOrPassword)
 	}
 
 	return validation, nil
 }
 
-func saveAttemptRecord(user model.SignInDto, isLoginSuccess bool) {
+func getRandomCode() string {
+	rand.Seed(time.Now().UnixNano())
+	min := 1001
+	max := 9998
+	code := fmt.Sprintf("%d", rand.Intn(max-min+1)+min)
+	return code
+}
+
+func saveFailedAttemptRecord(signInDto model.SignInDto) {
+	saveAttemptRecord(signInDto, false)
+}
+
+func saveSuccessAttemptRecord(signInDto model.SignInDto) {
+	saveAttemptRecord(signInDto, false)
+}
+
+func saveAttemptRecord(user model.SignInDto, isSuccessAttempt bool) {
 	errAttempt := attemptRepository.Create(model.LoginAttempt{
 		Email:  user.Email,
 		Time:   fmt.Sprint(time.Now().Unix()),
-		Status: isLoginSuccess,
+		Status: isSuccessAttempt,
 	})
 
 	if errAttempt != nil {

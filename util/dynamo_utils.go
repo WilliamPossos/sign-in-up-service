@@ -1,7 +1,9 @@
 package util
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -24,4 +26,11 @@ func GetItem(dbClient dynamodbiface.DynamoDBAPI, input *dynamodb.GetItemInput) (
 	}
 
 	return &item, nil
+}
+
+func GetHashPassword(password string) string {
+	hash := sha256.New()
+	hash.Write([]byte(password))
+	return fmt.Sprintf("%x", hash.Sum(nil))
+
 }
