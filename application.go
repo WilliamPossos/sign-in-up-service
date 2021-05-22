@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -46,14 +44,7 @@ const (
 )
 
 func init() {
-	//sess = session.Must(session.NewSessionWithOptions(session.Options{
-	//	SharedConfigState: session.SharedConfigEnable,
-	//}))
-
-	sess, _ = session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"),
-		Credentials: credentials.NewStaticCredentials("AKIAVQ3WVCU7ZU3TOOFV", "TiYMejzsFCUkakJ/SMEetNyySBbywK8aGimNkIzs", ""),
-	})
+	/
 
 	dynamoClient = dynamodb.New(sess)
 	sqsClient = sqs.New(sess)
