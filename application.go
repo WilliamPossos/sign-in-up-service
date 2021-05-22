@@ -44,7 +44,9 @@ const (
 )
 
 func init() {
-
+	sess = session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 	dynamoClient = dynamodb.New(sess)
 	sqsClient = sqs.New(sess)
 	sqsRepository = repository.SqsEmailService{SqsClient: sqsClient}
