@@ -19,9 +19,10 @@ type UserDynamoDb struct {
 	VerificationCode string `json:"code"`
 }
 
-type EmailVerification struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
+type EmailConfig struct {
+	Email    string `json:"email"`
+	HtmlBody string `json:"body"`
+	Subject  string `json:"subject"`
 }
 
 type OperationResult struct {

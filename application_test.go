@@ -28,7 +28,7 @@ type MockSqsRepository struct {
 	mock.Mock
 }
 
-func (m MockSqsRepository) Send(verification model.EmailVerification) error {
+func (m MockSqsRepository) Send(verification model.EmailConfig) error {
 	args := m.Called(verification)
 	return args.Error(0)
 }

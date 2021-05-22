@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
@@ -37,12 +39,21 @@ const (
 	SignInSuccess             = "SignInSuccess"
 	SignUpSuccess             = "SignUpSuccess"
 	InvalidUsernameOrPassword = "invalid username or password"
+	VerificationSubject       = "Challenge 3 verification code"
+	VerificationHtmlBody      = "<h1>Verification code</h1>	<p>%s</p>"
+	UserLockSubject           = "Challenge 3 user locked"
+	UserLockHtmlBody          = "<p>The user has been blocked. We are working on the unlock functionality.</p>"
 )
 
 func init() {
-	sess = session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	//sess = session.Must(session.NewSessionWithOptions(session.Options{
+	//	SharedConfigState: session.SharedConfigEnable,
+	//}))
+
+	sess, _ = session.NewSession(&aws.Config{
+		Region:      aws.String("us-east-1"),
+		Credentials: credentials.NewStaticCredentials("AKIAVQ3WVCU7ZU3TOOFV", "TiYMejzsFCUkakJ/SMEetNyySBbywK8aGimNkIzs", ""),
+	})
 
 	dynamoClient = dynamodb.New(sess)
 	sqsClient = sqs.New(sess)
@@ -126,9 +137,10 @@ func signUpHandler(c *gin.Context) {
 		return
 	}
 
-	verification := model.EmailVerification{
-		Email: user.Email,
-		Code:  code,
+	verification := model.EmailConfig{
+		Email:    user.Email,
+		HtmlBody: fmt.Sprintf(VerificationHtmlBody, code),
+		Subject:  VerificationSubject,
 	}
 	err = sqsRepository.Send(verification)
 
@@ -181,6 +193,15 @@ func userSingIn(signInDto model.SignInDto) (string, error) {
 		saveFailedAttemptRecord(signInDto)
 		return "", errors.New(InvalidUsernameOrPassword)
 	}
+	if validation == repository.MaxFailedAttempts {
+		verification := model.EmailConfig{
+			Email:    userFound.Email,
+			HtmlBody: UserLockHtmlBody,
+			Subject:  UserLockSubject,
+		}
+		err = sqsRepository.Send(verification)
+
+	}
 
 	return validation, nil
 }
@@ -198,7 +219,7 @@ func saveFailedAttemptRecord(signInDto model.SignInDto) {
 }
 
 func saveSuccessAttemptRecord(signInDto model.SignInDto) {
-	saveAttemptRecord(signInDto, false)
+	saveAttemptRecord(signInDto, true)
 }
 
 func saveAttemptRecord(user model.SignInDto, isSuccessAttempt bool) {

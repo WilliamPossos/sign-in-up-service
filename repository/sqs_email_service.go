@@ -12,14 +12,14 @@ import (
 var QueueUrl = os.Getenv("QUEUE_URL")
 
 type ISqsEmailService interface {
-	Send(verification model.EmailVerification) error
+	Send(verification model.EmailConfig) error
 }
 
 type SqsEmailService struct {
 	SqsClient sqsiface.SQSAPI
 }
 
-func (s SqsEmailService) Send(verification model.EmailVerification) error {
+func (s SqsEmailService) Send(verification model.EmailConfig) error {
 	verificationBytes, err := json.Marshal(verification)
 	if err != nil {
 		return err

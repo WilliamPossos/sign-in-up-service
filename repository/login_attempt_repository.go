@@ -56,13 +56,14 @@ func (ar LoginAttemptRepository) GetAttemptsValidation(email string, limit int) 
 	failedAttempts := 0
 
 	lenToIterate := limit
-	if len(result.Items) < lenToIterate {
-		lenToIterate = len(result.Items)
+	length := len(result.Items)
+	if length < lenToIterate {
+		lenToIterate = length
 	}
-	for i := 0; i < lenToIterate; i++ {
+	for i := 1; i <= lenToIterate; i++ {
 		attempt := model.LoginAttempt{}
 
-		err = dynamodbattribute.UnmarshalMap(result.Items[i], &attempt)
+		err = dynamodbattribute.UnmarshalMap(result.Items[length-i], &attempt)
 		if err != nil {
 			return "", err
 		}
