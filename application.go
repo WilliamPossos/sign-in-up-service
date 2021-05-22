@@ -44,7 +44,6 @@ const (
 )
 
 func init() {
-	/
 
 	dynamoClient = dynamodb.New(sess)
 	sqsClient = sqs.New(sess)
