@@ -55,11 +55,6 @@ func init() {
 		Credentials: credentials.NewStaticCredentials("AKIAVQ3WVCU7ZU3TOOFV", "TiYMejzsFCUkakJ/SMEetNyySBbywK8aGimNkIzs", ""),
 	})
 
-	//sess, _ = session.NewSession(&aws.Config{
-	//	Region:      aws.String("us-east-1"),
-	//	Credentials: credentials.NewStaticCredentials("AKIAVQ3WVCU7ZU3TOOFV", "TiYMejzsFCUkakJ/SMEetNyySBbywK8aGimNkIzs", ""),
-	//})
-
 	dynamoClient = dynamodb.New(sess)
 	sqsClient = sqs.New(sess)
 	sqsRepository = repository.SqsEmailService{SqsClient: sqsClient}
