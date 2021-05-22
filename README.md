@@ -6,6 +6,10 @@ The proposed AWS architecture is:
 
 ![AWS architecture](https://joiners-challenge.s3.amazonaws.com/aws-challenge-3.jpeg)
 
+## Site URL
+
+    `https://challenge-3.goodwilli.com/`
+
 ## Features
 
 - The back-end is built with Golang
