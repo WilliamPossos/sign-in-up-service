@@ -1,9 +1,10 @@
 .PHONY: build clean deploy
 
+deps:
+	go get -u ./...
+
 build:
-    go get -u ./...
-	env GOARCH=amd64 GOOS=linux -o bin/application application.go -ldflags="-s -w"
-	env GOARCH=amd64 GOOS=linux -o bin/application application.go -ldflags="-s -w"
+	env GOARCH=amd64 GOOS=linux go build -o bin/application application.go
 
 clean:
 	rm -rf ./bin ./vendor Gopkg.lock
