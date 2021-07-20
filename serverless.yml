@@ -16,14 +16,19 @@ service: challenge4
 #app: your-app-name
 #org: your-org-name
 
+custom:
+  userTableName: User
+  attemptsTableName: LoginAttempt
+  sqsUrl: 'https://sqs.us-east-1.amazonaws.com/379816580415/receiverQueue'
+
 provider:
   name: aws
   runtime: go1.x
   stage: dev
-  region: us-east-1
+  region: us-east-2
   lambdaHashingVersion: 20201221
   deploymentBucket:
-    name: 'joiners-challenge'
+    name: 'serverless-deployment-bucket-wp'
 
 package:
   patterns:
@@ -35,23 +40,52 @@ functions:
     handler: bin/application
     role: 'arn:aws:iam::379816580415:role/lambda-role'
     name: 'serverless-lambda'
-    disableLogs: false
+    environment:
+      USER_TABLE_NAME: ${self:custom.userTableName}
+      ATTEMPTS_TABLE_NAME: ${self:custom.attemptsTableName}
+      QUEUE_URL: ${self:custom.sqsUrl}
     events:
       - http: ANY /
       - http: 'ANY /{proxy+}'
 
-#resources:
-#  Resources:
-#    usersTable:
-#      Type: AWS::DynamoDB::Table
-#      Properties:
-#        TableName: usersTable
-#        AttributeDefinitions:
-#          - AttributeName: email
-#            AttributeType: S
-#        KeySchema:
-#          - AttributeName: email
-#            KeyType: HASH
-#        ProvisionedThroughput:
-#          ReadCapacityUnits: 1
-#          WriteCapacityUnits: 1
+resources:
+  Resources:
+    usersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.userTableName}
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    attemptsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.attemptsTableName}
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+          - AttributeName: time
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+          - AttributeName: time
+            KeyType: RANGE
+        LocalSecondaryIndexes:
+          - IndexName: time-index
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+              - AttributeName: time
+                KeyType: RANGE
+            Projection:
+              ProjectionType: KEYS_ONLY
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1

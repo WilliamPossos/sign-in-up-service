@@ -5,11 +5,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"os"
 	"sign-in-up-service/model"
 	"sign-in-up-service/util"
 )
 
-const tableName = "User"
+var tableName = os.Getenv("USER_TABLE_NAME")
 
 type IUserRepository interface {
 	Verify(email string, code string) (bool, error)

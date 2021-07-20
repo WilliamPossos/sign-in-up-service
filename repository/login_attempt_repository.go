@@ -6,10 +6,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"os"
 	"sign-in-up-service/model"
 )
 
-var LoginAttemptTableName = "LoginAttempt"
+var LoginAttemptTableName = os.Getenv("ATTEMPTS_TABLE_NAME")
 
 const (
 	EmptyAttempts         = "EmptyAttempts"
