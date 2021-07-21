@@ -1,7 +1,7 @@
 .PHONY: build clean deploy
 
 deps:
-	go get -u ./...
+	go get
 
 build:
 	env GOARCH=amd64 GOOS=linux go build -o bin/application application.go
